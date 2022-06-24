@@ -1,0 +1,290 @@
+//const parkour = [2, { "lat": [48.897721, 48.897774, 48.897981, 48.898023], "lon": [2.107237, 2.107273, 2.109939, 2.109996], "alt": [30, 50] }, { "lat": [48.917547, 48.917555, 48.917743, 48.917744], "lon": [2.118798, 2.118798, 2.121086, 2.121086], "alt": [30, 50] }, { "lat": [48.944206, 48.944472, 48.945050, 48.945322], "lon": [2.157384, 2.157735, 2.159169, 2.159477], "alt": [30, 50] }]
+const parkour = []
+var x = false
+geofs.animation.values.navHDG = 0
+
+async function checkIf(playerLat, playerLon, playerAlt, i) {
+
+    if (playerLat < parkour[i + 1].lat[3] & playerLat > parkour[i + 1].lat[0]) {
+
+        if (playerLon < parkour[i + 1].lon[3] & playerLon > parkour[i + 1].lon[0]) {
+
+            if (playerAlt < parkour[i + 1].alt[1] & playerAlt > parkour[i + 1].alt[0]) {
+                //console.log("True")
+                if (i === parkour[0]) {
+                    end()
+                    await sleep(100)
+                    x = false
+                    var waypointNUM = `Waypoint ${i+1} out of ${parkour[0]+1}`
+                    var waypointnum = document.getElementById("waypointNumber")
+                    waypointnum.innerHTML = waypointNUM;
+                }
+                else if (i === 0) {
+                    console.log("Next waypoint, timer started")
+                    averageLoops()
+                    start()
+                    return true
+
+                }
+                else {
+                    console.log("next waypoint")
+                    return true
+                }
+            }
+            else {
+                //console.log("false z")
+                return false
+            }
+        }
+        else {
+            //console.log("false y")
+            return false
+        }
+    }
+    else {
+        //console.log("false x")
+        return false
+
+    }
+}
+
+//checkIf(48.897868, 2.107093, 36)
+//checkIf(48.896868, 2.107093, 36)
+//checkIf(48.897868, 2.108093, 36)
+//checkIf(48.897868, 2.107093, 26)
+async function spawnModel(i, brng) {
+    var yPosition = (parkour[i + 1].lon[3] + parkour[i + 1].lon[0]) / 2
+    var xPosition = (parkour[i + 1].lat[3] + parkour[i + 1].lat[0]) / 2
+    var altPosition = geofs.getGroundAltitude(xPosition, yPosition).location[2] + 200
+    geofs.objects.objectList = [{
+        "location": [xPosition, yPosition, altPosition],
+        "url": "https://raw.githubusercontent.com/TotallyRealElonMusk/Geo-FS-Speed-Challenges/main/3d-models/arrow.glb",
+        "htr": [brng, 0, 0],
+        "scale": 2,
+        "options": { "shadows": 0 }, "type": 100
+    }]
+    geofs.objects.loadModels();
+}
+async function deleteModels() {
+    geofs.objects.unloadModels();
+}
+async function theLoop() {
+    var i = 0
+    x = true
+    var brng = 0
+    spawnModel(i, brng)
+    while (x === true) {
+        var X = geofs.aircraft.instance.llaLocation[0];
+        var Y = geofs.aircraft.instance.llaLocation[1];
+        var res = await checkIf(X, Y, 36, i)
+        if (res === true) {
+            i += 1
+            deleteModels()
+            spawnModel(i, brng)
+            var waypointNUM = `Waypoint ${i} out of ${parkour[0]+1}`
+            var waypointnum = document.getElementById("waypointNumber")
+            waypointnum.innerHTML = waypointNUM;
+        }
+
+        var La = Y
+        var θa = X
+        var Lb = (parkour[i + 1].lon[3] + parkour[i + 1].lon[0]) / 2
+        var θb = (parkour[i + 1].lat[3] + parkour[i + 1].lat[0]) / 2
+        var coordX = (Math.cos(toRadians(θb))) * (Math.sin(toRadians(diff(Lb, La))))
+        var coordY = (Math.cos(toRadians(θa))) * (Math.sin(toRadians(θb))) - (Math.sin(toRadians(θa))) * (Math.cos(toRadians(θb))) * (Math.cos(toRadians(diff(Lb, La))))
+        var β = Math.atan2(coordX, coordY)
+        var brng = (β * 180 / Math.PI + 360) % 360
+
+
+
+        geofs.animation.values.navHDG = brng
+
+
+        if (i!==0){
+            setTime()
+}
+        await sleep(25);
+    }
+}
+function setTime(){
+    if (timeExist === true){
+    var currentTime = performance.now();
+
+    var timeDifference = currentTime - time[0]; //in ms 
+
+    timeDifference /= 1000;
+    
+    var timeHtml = "Time: " + Math.round(timeDifference* 100) / 100
+    //console.log(timeHtml)
+    var timeValueDOM = document.getElementById("timeValuechallenge")
+    timeValueDOM.innerHTML =timeHtml;
+}
+}
+function initialise() {
+    console.log("initialised")
+    theLoop()
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+const altitudeList = []
+const speedList = []
+async function averageLoops() {
+    while (x === true) {
+        var alt = geofs.relativeAltitude;
+        var speed = geofs.animation.values.kias
+        altitudeList.push(alt)
+        speedList.push(speed)
+        var averageAlt = "Your average altitude is: " + Math.round(getAltMedian())
+        var averageSpd = "Your average speed is: " + Math.round(getSpdMedian())
+        var speedValueDOM = document.getElementById("speedValue")
+        speedValueDOM.innerHTML = averageSpd;
+        var altValueDOM = document.getElementById("altValuechallenge")
+        altValueDOM.innerHTML =averageAlt;
+        await sleep(100);
+    }
+}
+
+function getAltMedian() {
+    var average = altitudeList.reduce((a, b) => a + b, 0) / altitudeList.length;
+    return average
+}
+function getSpdMedian() {
+    var average = speedList.reduce((a, b) => a + b, 0) / speedList.length;
+    return average
+}
+
+
+var endTime
+const time = []
+var timeExist = false
+async function start() {
+    var startTime = performance.now()
+    //console.log(startTime)
+    time.push(startTime)
+    timeExist = true
+
+}
+
+async function end() {
+    endTime = performance.now();
+
+    var timeDiff = endTime - time[0]; //in ms 
+
+    // strip the ms 
+    timeDiff /= 1000;
+
+    var averageAlt = await getAltMedian()
+    //console.log(`Average alt is ${averageAlt}`)
+    var averageSpd = await getSpdMedian()
+    //console.log(`Average speed is ${averageSpd}`)
+    var score = 10000 * (averageAlt ** -1) * (timeDiff ** -1) * averageSpd
+    // get seconds 
+    //console.log("Parkour finished, you took " + Math.round(timeDiff* 100) / 100 + " seconds");
+    var fScore = Math.round(score)
+    var finalScore = `Your score is: ${fScore}`
+    var scoreHTML = document.getElementById("score")
+    scoreHTML.innerHTML =finalScore;
+    //var score = 
+}
+//let startInput = "q";
+//document.addEventListener("keypress", function onEvent(event) {
+//
+//    if (event.key === startInput) {
+//        if (x === false) { initialise() }
+//        else { console.log("already started") }
+//    }
+//})
+
+async function reload() {
+    x = false
+    console.log("reloaded")
+    altitudeList.length = 0
+    speedList.length = 0
+    endTime = 0
+    time.length = 0
+    timeExist = false
+    parkour.length = 0
+}
+
+//let reloadInput = "l";
+//document.addEventListener("keypress", function onEvent(event) {
+//
+//    if (event.key === reloadInput) { reload() }
+//})
+function diff(num1, num2) {
+    if (num1 > num2) {
+        return num1 - num2
+    } else {
+        return num2 - num1
+    }
+}
+function toRadians(angle) {
+    return angle * (Math.PI / 180);
+}
+
+// testing here...
+
+let customBuildings = document.createElement("div");
+customBuildings.innerHTML = '<ul class="geofs-list geofs-toggle-panel geofs-challenges-list geofs-preferences" data-noblur="true" data-onshow="{geofs.initializePreferencesPanel()}" data-onhide="{geofs.savePreferencesPanel()}"> <style>#MainDIV{position: absolute; left: 0px; top: 0px; background-color: white; text-align: left; padding: 0px 0px 0px 10px; margin-top: 2px; margin-bottom: 2px;}#DIVtitle{color: black; font-family: Helvetica, Arial, sans-serif; font-size: 20px;}{color: black; font-family: Helvetica, Arial, sans-serif;}</style> <div id="MainDIV"> <p id="DIVtitle">Geo-FS challenges page</p></p><p>Challenge JSON: <input type="text" placeholder="Enter the JSON here" id=parkour size=“25” value=> </p><button class=mdl-button mdl-js-button mdl-button—raised mdl-button—colored onclick=initialiseFunction() data-upgraded=,MaterialButton>Load JSON</button> <p id="jsonStatus" style="display: inline-block"></p></p><button class=mdl-button mdl-js-button mdl-button—raised mdl-button—colored onclick=secondInitialise() data-upgraded=,MaterialButton>Start challenge</button><button class=mdl-button mdl-js-button mdl-button—raised mdl-button—colored onclick=reloadChallenge() data-upgraded=,MaterialButton>Reload Challenge</button> <p id="startValue"style="display: inline-block"></p><p id="timeValuechallenge"></p><p id="waypointNumber"></p><p id="speedValue"></p><p id="altValuechallenge"></p><p id="score"></p></div></p></ul>';
+let sidePanel = document.getElementsByClassName("geofs-ui-left")[0];
+document.getElementsByClassName("geofs-ui-left")[0].appendChild(customBuildings);
+
+//document.getElementsByClassName("geofs-challenges-list")[0].appendChild('<div>Test</div>');
+
+
+// Toggle Button Code
+let buttonDiv = document.createElement("div");
+buttonDiv.innerHTML = '<button class="mdl-button mdl-js-button geofs-f-standard-ui geofs-mediumScreenOnly" data-toggle-panel=".geofs-challenges-list" data-tooltip-classname="mdl-tooltip--top" id="landButton" tabindex="0" data-upgraded=",MaterialButton">Geo-FS Challenges</button>';
+document.body.appendChild(buttonDiv);
+document.getElementsByClassName("geofs-ui-bottom")[0].appendChild(buttonDiv);
+let element = document.getElementById("landButton");
+document.getElementsByClassName("geofs-ui-bottom")[0].insertBefore(element, buttonDiv);
+
+window.initialiseFunction = async () => {
+    parkour.length = 0
+    try {inputJson = JSON.parse(document.getElementById("parkour").value)
+    inputJson.forEach(function (item, index) {
+        parkour.push(inputJson[index]);
+        editJSONHTML()
+    });}
+    catch(error){
+    var status = "Invalid JSON!"
+    var parkourStatus = document.getElementById("jsonStatus")
+    parkourStatus.innerHTML =status;
+    }
+}
+window.secondInitialise = () => {
+    if (parkour.length === 0){
+        var status = "Please insert a JSON!"
+        var startStatus = document.getElementById("startValue")
+        startStatus.innerHTML =status;}
+    else {
+        var status = ""
+        var startStatus = document.getElementById("startValue")
+        startStatus.innerHTML =status;}
+        initialise()
+    }
+
+window.reloadChallenge = async () => {
+    reload()
+    var status = "Challenge reloaded"
+    var startStatus = document.getElementById("startValue")
+    startStatus.innerHTML =status;
+    await sleep(3000)
+    var status = ""
+    var startStatus = document.getElementById("startValue")
+    startStatus.innerHTML =status;}
+
+async function editJSONHTML(){
+    var status = "JSON validated!"
+    var parkourStatus = document.getElementById("jsonStatus")
+    parkourStatus.innerHTML =status;
+    console.log(parkour)
+    await sleep(3000)
+    var status = ""
+    var parkourStatus = document.getElementById("jsonStatus")
+    parkourStatus.innerHTML =status;
+}
